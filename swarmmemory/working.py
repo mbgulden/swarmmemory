@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+import uuid
 from typing import Any
 
 from .types import WorkingEntry
@@ -13,7 +14,10 @@ class WorkingScratchpad:
         if db_path == ":memory:":
             # Shared-cache in-memory DBs are destroyed when the last connection
             # closes, so hold one connection open for the store's lifetime.
-            self.db_path = f"file:memdb_{id(self)}?mode=memory&cache=shared"
+            # The name is a uuid (not id(self)): id() values are recycled after
+            # garbage collection, which can hand a new store a previous store's
+            # still-closing database on some Python versions.
+            self.db_path = f"file:memdb_{uuid.uuid4().hex}?mode=memory&cache=shared"
             self._keepalive = sqlite3.connect(self.db_path, uri=True)
         else:
             self.db_path = db_path
