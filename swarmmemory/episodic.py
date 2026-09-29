@@ -1,9 +1,9 @@
-import sqlite3
 import json
+import sqlite3
 import time
-from typing import List, Optional
-from pathlib import Path
-from .types import Episode, MemoryQuery, MemoryError
+
+from .types import Episode, MemoryError, MemoryQuery
+
 
 class EpisodicStore:
     def __init__(self, db_path: str = ":memory:"):
@@ -62,28 +62,28 @@ class EpisodicStore:
         except sqlite3.IntegrityError as e:
             raise MemoryError(f"Failed to store episode: {e}")
 
-    def recall(self, query: MemoryQuery) -> List[Episode]:
+    def recall(self, query: MemoryQuery) -> list[Episode]:
         # For this implementation, we do a basic FTS search combined with standard queries
         with sqlite3.connect(self.db_path, uri=True) as conn:
             sql = "SELECT e.episode_id, e.agent_id, e.event_type, e.content, e.metadata, e.timestamp, e.embedding, e.tags FROM episodes e"
             params = []
-            
+
             conditions = []
-            
+
             if query.text:
                 conditions.append("e.rowid IN (SELECT rowid FROM episodes_fts WHERE content MATCH ?)")
                 params.append(query.text)
-                
+
             if query.agent_id:
                 conditions.append("e.agent_id = ?")
                 params.append(query.agent_id)
-                
+
             if conditions:
                 sql += " WHERE " + " AND ".join(conditions)
-                
+
             sql += " ORDER BY e.timestamp DESC LIMIT ?"
             params.append(query.limit)
-            
+
             cursor = conn.execute(sql, params)
             results = []
             for row in cursor.fetchall():
@@ -91,7 +91,7 @@ class EpisodicStore:
                 # Simple tag filter if tags were provided
                 if query.tags and not all(tag in tags for tag in query.tags):
                     continue
-                    
+
                 results.append(Episode(
                     episode_id=row[0],
                     agent_id=row[1],
