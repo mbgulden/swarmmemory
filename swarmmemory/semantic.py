@@ -1,12 +1,13 @@
 import ast
 from pathlib import Path
-from typing import List, Tuple
+
 from .types import SemanticNode
+
 
 class SemanticVisitor(ast.NodeVisitor):
     def __init__(self, file_path: str):
         self.file_path = file_path
-        self.nodes: List[SemanticNode] = []
+        self.nodes: list[SemanticNode] = []
         self.current_class = None
 
     def visit_ClassDef(self, node: ast.ClassDef):
@@ -20,7 +21,7 @@ class SemanticVisitor(ast.NodeVisitor):
             dependencies=[b.id for b in node.bases if isinstance(b, ast.Name)],
             summary=f"Class {node.name}" + (f": {docstring[:50]}..." if docstring else "")
         ))
-        
+
         # Keep track of class context for methods
         old_class = self.current_class
         self.current_class = node.name
@@ -42,19 +43,19 @@ class SemanticVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 class SemanticDistiller:
-    def distill_file(self, file_path: Path) -> List[SemanticNode]:
+    def distill_file(self, file_path: Path) -> list[SemanticNode]:
         if not file_path.exists() or file_path.suffix != '.py':
             return []
-            
+
         try:
             content = file_path.read_text(encoding='utf-8')
             tree = ast.parse(content, filename=str(file_path))
-        except Exception:
+        except (OSError, SyntaxError, ValueError, RecursionError):
             return []
 
         visitor = SemanticVisitor(str(file_path))
         visitor.visit(tree)
-        
+
         # Add module level docstring if present
         mod_doc = ast.get_docstring(tree)
         if mod_doc:
@@ -67,25 +68,25 @@ class SemanticDistiller:
                 dependencies=[],
                 summary=f"Module {file_path.stem}"
             ))
-            
+
         return visitor.nodes
 
-    def distill_directory(self, dir_path: Path) -> List[SemanticNode]:
+    def distill_directory(self, dir_path: Path) -> list[SemanticNode]:
         nodes = []
         if not dir_path.is_dir():
             return nodes
-            
+
         for py_file in dir_path.rglob("*.py"):
             nodes.extend(self.distill_file(py_file))
         return nodes
 
-    def summarize_context(self, nodes: List[SemanticNode], max_tokens: int = 1000) -> str:
+    def summarize_context(self, nodes: list[SemanticNode], max_tokens: int = 1000) -> str:
         # A simple character-based approximation for tokens (approx 4 chars per token)
         max_chars = max_tokens * 4
-        
+
         lines = []
         current_chars = 0
-        
+
         for node in nodes:
             entry = f"- {node.symbol_type} `{node.symbol_name}` ({node.file_path}:{node.line_range[0]}-{node.line_range[1]}): {node.summary}"
             if current_chars + len(entry) > max_chars:
@@ -93,5 +94,5 @@ class SemanticDistiller:
                 break
             lines.append(entry)
             current_chars += len(entry)
-            
+
         return "\n".join(lines)

@@ -1,18 +1,21 @@
+from __future__ import annotations
+
 import sqlite3
-from typing import List, Union
-from .types import MemoryQuery, MemoryStats, Episode, SemanticNode
+
 from .episodic import EpisodicStore
+from .types import Episode, MemoryQuery, MemoryStats, SemanticNode
 from .working import WorkingScratchpad
+
 
 class MemoryIndex:
     def __init__(self, episodic_store: EpisodicStore, working_store: WorkingScratchpad):
         self.episodic = episodic_store
         self.working = working_store
 
-    def search(self, query: MemoryQuery) -> List[Union[Episode, SemanticNode]]:
+    def search(self, query: MemoryQuery) -> list[Episode | SemanticNode]:
         # In a real implementation, this would query a unified vector index.
         # Here we just delegate to episodic store as semantic store is AST-based and doesn't store to DB currently.
-        results: List[Union[Episode, SemanticNode]] = []
+        results: list[Episode | SemanticNode] = []
         episodes = self.episodic.recall(query)
         results.extend(episodes)
         return results
@@ -30,7 +33,7 @@ class MemoryIndex:
 
         # Semantic nodes are not persistently stored in this implementation
         total_semantic = 0
-        
+
         return MemoryStats(
             total_episodes=total_episodes,
             total_working_entries=total_working,
@@ -41,10 +44,10 @@ class MemoryIndex:
     def export_context(self, query: MemoryQuery, max_tokens: int = 1000) -> str:
         results = self.episodic.recall(query)
         max_chars = max_tokens * 4
-        
+
         lines = []
         current_chars = 0
-        
+
         for ep in results:
             entry = f"[{ep.timestamp}] {ep.agent_id} ({ep.event_type}): {ep.content}"
             if current_chars + len(entry) > max_chars:
@@ -52,5 +55,5 @@ class MemoryIndex:
                 break
             lines.append(entry)
             current_chars += len(entry)
-            
+
         return "\n".join(lines)

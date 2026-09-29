@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import dataclasses
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+
 
 class MemoryError(Exception):
     """Base exception for all Memory errors."""
-    pass
 
 @dataclasses.dataclass
 class Episode:
@@ -11,10 +13,10 @@ class Episode:
     agent_id: str
     event_type: str
     content: str
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     timestamp: float
-    embedding: Optional[List[float]] = None
-    tags: List[str] = dataclasses.field(default_factory=list)
+    embedding: list[float] | None = None
+    tags: list[str] = dataclasses.field(default_factory=list)
 
 @dataclasses.dataclass
 class WorkingEntry:
@@ -30,16 +32,16 @@ class SemanticNode:
     symbol_name: str
     symbol_type: str
     file_path: str
-    line_range: Tuple[int, int]
+    line_range: tuple[int, int]
     docstring: str
-    dependencies: List[str]
+    dependencies: list[str]
     summary: str
 
 @dataclasses.dataclass
 class MemoryQuery:
     text: str
-    tags: List[str] = dataclasses.field(default_factory=list)
-    agent_id: Optional[str] = None
+    tags: list[str] = dataclasses.field(default_factory=list)
+    agent_id: str | None = None
     limit: int = 10
     min_relevance: float = 0.0
 

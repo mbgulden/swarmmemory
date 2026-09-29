@@ -1,9 +1,12 @@
 import argparse
-import sys
 from pathlib import Path
+
 from .episodic import EpisodicStore
+from .index import MemoryIndex
 from .semantic import SemanticDistiller
 from .types import MemoryQuery
+from .working import WorkingScratchpad
+
 
 def main():
     parser = argparse.ArgumentParser(description="SwarmMemory CLI")
@@ -30,17 +33,20 @@ def main():
         results = store.recall(MemoryQuery(text=args.text))
         for r in results:
             print(f"[{r.episode_id}] {r.content}")
-            
+
     elif args.command == "stats":
         store = EpisodicStore(args.db)
-        # simplified stats
-        print("Stats logic here")
-        
+        scratch = WorkingScratchpad(args.db)
+        stats = MemoryIndex(store, scratch).stats()
+        print(f"Episodes: {stats.total_episodes}")
+        print(f"Working entries: {stats.total_working_entries}")
+        print(f"Semantic nodes: {stats.total_semantic_nodes}")
+
     elif args.command == "gc":
         store = EpisodicStore(args.db)
         count = store.gc(args.days)
         print(f"Garbage collected {count} episodes")
-        
+
     elif args.command == "distill":
         distiller = SemanticDistiller()
         p = Path(args.path)
@@ -48,7 +54,7 @@ def main():
             nodes = distiller.distill_file(p)
         else:
             nodes = distiller.distill_directory(p)
-        
+
         for n in nodes:
             print(f"{n.symbol_type} {n.symbol_name} ({n.file_path})")
 
