@@ -10,7 +10,14 @@ from .types import WorkingEntry
 
 class WorkingScratchpad:
     def __init__(self, db_path: str = ":memory:"):
-        self.db_path = f"file:memdb_{id(self)}?mode=memory&cache=shared" if db_path == ":memory:" else db_path
+        if db_path == ":memory:":
+            # Shared-cache in-memory DBs are destroyed when the last connection
+            # closes, so hold one connection open for the store's lifetime.
+            self.db_path = f"file:memdb_{id(self)}?mode=memory&cache=shared"
+            self._keepalive = sqlite3.connect(self.db_path, uri=True)
+        else:
+            self.db_path = db_path
+            self._keepalive = None
         self._init_db()
 
     def _init_db(self):
