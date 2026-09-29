@@ -1,6 +1,7 @@
 import json
 import sqlite3
 import time
+import uuid
 
 from .types import Episode, MemoryError, MemoryQuery
 
@@ -10,9 +11,10 @@ class EpisodicStore:
         if db_path == ":memory:":
             # Shared-cache in-memory DBs are destroyed when the last connection
             # closes, so hold one connection open for the store's lifetime.
-            # (Relying on an unclosed connection surviving garbage collection
-            # is version-dependent and breaks on some Pythons.)
-            self.db_path = f"file:memdb_{id(self)}?mode=memory&cache=shared"
+            # The name is a uuid (not id(self)): id() values are recycled after
+            # garbage collection, which can hand a new store a previous store's
+            # still-closing database on some Python versions.
+            self.db_path = f"file:memdb_{uuid.uuid4().hex}?mode=memory&cache=shared"
             self._keepalive = sqlite3.connect(self.db_path, uri=True)
         else:
             self.db_path = db_path
