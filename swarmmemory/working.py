@@ -1,8 +1,12 @@
-import sqlite3
+from __future__ import annotations
+
 import json
+import sqlite3
 import time
-from typing import Any, List, Optional
-from .types import WorkingEntry, MemoryError
+from typing import Any
+
+from .types import WorkingEntry
+
 
 class WorkingScratchpad:
     def __init__(self, db_path: str = ":memory:"):
@@ -26,15 +30,14 @@ class WorkingScratchpad:
 
     def put(self, key: str, value: Any, agent_id: str) -> None:
         with sqlite3.connect(self.db_path, uri=True) as conn:
-            cursor = conn.execute("SELECT version, created_at FROM working WHERE key = ?", (key,))
+            cursor = conn.execute("SELECT version FROM working WHERE key = ?", (key,))
             row = cursor.fetchone()
-            
+
             now = time.time()
             if row:
                 version = row[0] + 1
-                created_at = row[1]
                 conn.execute('''
-                    UPDATE working 
+                    UPDATE working
                     SET value = ?, owner_agent_id = ?, updated_at = ?, version = ?
                     WHERE key = ?
                 ''', (json.dumps(value), agent_id, now, version, key))
@@ -44,7 +47,7 @@ class WorkingScratchpad:
                     VALUES (?, ?, ?, ?, ?, ?)
                 ''', (key, json.dumps(value), agent_id, now, now, 1))
 
-    def get(self, key: str) -> Optional[WorkingEntry]:
+    def get(self, key: str) -> WorkingEntry | None:
         with sqlite3.connect(self.db_path, uri=True) as conn:
             cursor = conn.execute('''
                 SELECT key, value, owner_agent_id, created_at, updated_at, version
@@ -53,7 +56,7 @@ class WorkingScratchpad:
             row = cursor.fetchone()
             if not row:
                 return None
-            
+
             return WorkingEntry(
                 key=row[0],
                 value=json.loads(row[1]),
@@ -67,23 +70,23 @@ class WorkingScratchpad:
         with sqlite3.connect(self.db_path, uri=True) as conn:
             cursor = conn.execute("SELECT version FROM working WHERE key = ?", (key,))
             row = cursor.fetchone()
-            
+
             if not row:
                 return False
-                
+
             current_version = row[0]
             if current_version != expected_version:
                 return False
-                
+
             now = time.time()
             conn.execute('''
-                UPDATE working 
+                UPDATE working
                 SET value = ?, owner_agent_id = ?, updated_at = ?, version = ?
                 WHERE key = ? AND version = ?
             ''', (json.dumps(new_value), agent_id, now, current_version + 1, key, expected_version))
             return True
 
-    def list_keys(self, prefix: str) -> List[str]:
+    def list_keys(self, prefix: str) -> list[str]:
         with sqlite3.connect(self.db_path, uri=True) as conn:
             cursor = conn.execute("SELECT key FROM working WHERE key LIKE ?", (f"{prefix}%",))
             return [row[0] for row in cursor.fetchall()]
